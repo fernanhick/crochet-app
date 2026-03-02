@@ -21,8 +21,7 @@ export default function UnauthorizedPage() {
       </p>
       <p style={{ color: "#999", fontSize: 13, margin: 0 }}>
         To grant access: Clerk Dashboard → Users → your account →{" "}
-        <strong>Public Metadata</strong> → set{" "}
-        <code>{`{"role":"admin"}`}</code>
+        <strong>Public Metadata</strong> → set <code>{`{"role":"admin"}`}</code>
       </p>
       <SignOutButton>
         <button

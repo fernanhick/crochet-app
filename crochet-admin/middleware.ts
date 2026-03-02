@@ -18,7 +18,15 @@ export default clerkMiddleware(async (auth, req) => {
     // Signed in but not admin → redirect to /unauthorized (NOT /sign-in).
     // Redirecting to /sign-in causes an infinite loop because Clerk sees the
     // user is already authenticated and immediately bounces back to /admin.
-    const role = (sessionClaims?.metadata as any)?.role;
+    //
+    // Clerk serialises publicMetadata as `public_metadata` in the JWT claims.
+    // Check all known paths defensively.
+    const claims = sessionClaims as any;
+    const role =
+      claims?.public_metadata?.role ??
+      claims?.publicMetadata?.role ??
+      claims?.metadata?.role ??
+      claims?.role;
     if (role !== "admin") {
       return Response.redirect(new URL("/unauthorized", req.url));
     }
