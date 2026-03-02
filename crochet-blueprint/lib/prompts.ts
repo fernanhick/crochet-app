@@ -216,7 +216,7 @@ export function assemblePrompt(args: UserContextArgs): AssembledPrompt {
   return { system, user };
 }
 
-// ── Image instruction — GPT appends IMAGE DESCRIPTION at end of output (v8) ─────
+// ── Image instruction — GPT appends IMAGE DESCRIPTION at end of output ─────────
 // Parsed out and sent to dall-e-3 in generatePattern.ts. Stripped before storage.
 export function buildImageInstruction(args: UserContextArgs): string {
   const colorStr =
@@ -224,7 +224,9 @@ export function buildImageInstruction(args: UserContextArgs): string {
   const yarnStr = args.yarnWeight || "worsted";
   return (
     `After ---END PATTERN--- append exactly one line in this format:\n` +
-    `IMAGE DESCRIPTION: [a single-sentence photorealistic studio photo description of the finished ${args.type} you just designed, ` +
-    `using ${colorStr} ${yarnStr} yarn, on a warm wooden surface, soft studio lighting, sharp yarn texture, no people, no text]`
+    `IMAGE DESCRIPTION: [a single-sentence description of a flat-lay grid image on a warm wooden surface showing: ` +
+    `each crocheted part of the ${args.type} laid out separately (head, body, arms, legs, ears, accessories) in the top rows ` +
+    `and the fully assembled finished ${args.type} in the bottom-right corner, ` +
+    `using ${colorStr} ${yarnStr} yarn, soft studio lighting, sharp yarn texture, photorealistic, no people, no text]`
   );
 }

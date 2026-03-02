@@ -158,8 +158,10 @@ export const generatePattern = action({
       const yarnStr = args.yarnWeight ?? "worsted";
       // Fallback includes the user's description so the image matches what they asked for
       const fallbackDescription =
-        `A photorealistic studio photo of a finished crochet ${args.type} of ${args.description || "a charming design"}, ` +
-        `made with ${colorStr} ${yarnStr} yarn, on a warm wooden surface, soft studio lighting, sharp yarn texture, no people, no text`;
+        `A flat-lay grid photo on a warm wooden surface showing each crocheted part of a ${args.type} (${args.description || "a charming design"}) ` +
+        `laid out separately (head, body, arms, legs, ears, accessories) in the top rows, ` +
+        `with the fully assembled finished piece in the bottom-right corner, ` +
+        `made with ${colorStr} ${yarnStr} yarn, soft studio lighting, sharp yarn texture, photorealistic, no people, no text`;
       const imageDescription = imageDescMatch
         ? imageDescMatch[1].trim()
         : fallbackDescription;
