@@ -2,6 +2,7 @@
 
 import { useQuery } from "convex/react";
 import { api } from "@convex/_generated/api";
+import { ConvexErrorBoundary } from "@/components/ConvexErrorBoundary";
 
 const card: React.CSSProperties = {
   background: "#fff",
@@ -137,6 +138,14 @@ function Sparkline({
 }
 
 export default function StatsPage() {
+  return (
+    <ConvexErrorBoundary>
+      <StatsContents />
+    </ConvexErrorBoundary>
+  );
+}
+
+function StatsContents() {
   const stats: any = useQuery(api.queries.admin.getStats, {});
 
   if (stats === undefined) return <p style={{ color: "#888" }}>Loading…</p>;

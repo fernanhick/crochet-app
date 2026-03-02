@@ -4,6 +4,7 @@ import { useQuery } from "convex/react";
 import { api } from "@convex/_generated/api";
 import { useParams } from "next/navigation";
 import Link from "next/link";
+import { ConvexErrorBoundary } from "@/components/ConvexErrorBoundary";
 
 const card: React.CSSProperties = {
   background: "#fff",
@@ -95,6 +96,14 @@ const STATUS_COLOR: Record<string, string> = {
 };
 
 export default function DetailPage() {
+  return (
+    <ConvexErrorBoundary>
+      <DetailContents />
+    </ConvexErrorBoundary>
+  );
+}
+
+function DetailContents() {
   const params = useParams();
   const logId = params.logId as string;
   const log: any = useQuery(api.queries.admin.getGenerationLog, {

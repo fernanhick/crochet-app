@@ -36,6 +36,9 @@ export default function AdminLayout({
         <Link href="/admin" style={linkStyle}>
           Feed
         </Link>
+        <Link href="/admin/patterns" style={linkStyle}>
+          Patterns
+        </Link>
         <Link href="/admin/stats" style={linkStyle}>
           Stats
         </Link>
@@ -47,11 +50,12 @@ export default function AdminLayout({
           style={{
             ...linkStyle,
             marginLeft: "auto",
-            opacity: 0.6,
+            opacity: 0.45,
             fontWeight: 400,
+            fontSize: 12,
           }}
         >
-          Debug JWT
+          Debug
         </Link>
       </nav>
       <main style={mainStyle}>{children}</main>

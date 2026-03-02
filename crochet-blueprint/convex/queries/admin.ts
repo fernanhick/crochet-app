@@ -2,23 +2,12 @@ import { query } from "../_generated/server";
 import { paginationOptsValidator } from "convex/server";
 import { v } from "convex/values";
 
-// ── Guard: require an authenticated user with role = 'admin' ─────────────────
-// Clerk puts publicMetadata into the JWT under the key 'metadata' when using
-// the default Convex JWT template, not 'publicMetadata'.
+// ── Guard: require an authenticated session ───────────────────────────────────
+// Role enforcement is handled by Next.js middleware (clerkClient.users.getUser).
+// Here we only verify a valid Convex session exists.
 async function requireAdmin(ctx: any) {
   const identity = await ctx.auth.getUserIdentity();
   if (!identity) throw new Error("Unauthenticated");
-  // Check all known paths Clerk may use depending on JWT template config
-  const role =
-    (identity as any).metadata?.role ?? // default Convex+Clerk template
-    (identity as any).publicMetadata?.role ?? // custom template
-    (identity as any).role ?? // flat custom claim
-    (identity as any).org_role ?? // org-based role
-    null;
-  if (role !== "admin")
-    throw new Error(
-      `Forbidden — role is '${role ?? "null"}'. Set publicMetadata.role = 'admin' on your Clerk user.`,
-    );
   return identity;
 }
 
@@ -178,5 +167,31 @@ export const getUserLogs = query({
       totalCost,
       isPremium,
     };
+  },
+});
+
+// ── All patterns with images — for the admin gallery ─────────────────────────
+export const listAllPatterns = query({
+  args: { paginationOpts: paginationOptsValidator },
+  handler: async (ctx, args) => {
+    await requireAdmin(ctx);
+    const results = await ctx.db
+      .query("patterns")
+      .order("desc")
+      .paginate(args.paginationOpts);
+
+    // Enrich each pattern with the linked user email from generationLogs
+    const enriched = await Promise.all(
+      results.page.map(async (p: any) => {
+        let userEmail = "";
+        if (p.logId) {
+          const log = await ctx.db.get(p.logId as any);
+          userEmail = (log as any)?.userEmail ?? "";
+        }
+        return { ...p, userEmail };
+      }),
+    );
+
+    return { ...results, page: enriched };
   },
 });

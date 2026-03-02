@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useQuery } from "convex/react";
 import { api } from "@convex/_generated/api";
 import Link from "next/link";
+import { ConvexErrorBoundary } from "@/components/ConvexErrorBoundary";
 
 const STATUS_COLOR: Record<string, string> = {
   success: "#28a745",
@@ -137,6 +138,14 @@ function UserResults({ email }: { email: string }) {
 }
 
 export default function UsersPage() {
+  return (
+    <ConvexErrorBoundary>
+      <UsersContents />
+    </ConvexErrorBoundary>
+  );
+}
+
+function UsersContents() {
   const [input, setInput] = useState("");
   const [search, setSearch] = useState("");
 
