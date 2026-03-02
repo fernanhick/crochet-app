@@ -82,13 +82,17 @@ const GAUGE_REFERENCE: Record<string, string> = {
 const TYPE_INSTRUCTIONS: Record<string, string> = {
   amigurumi:
     "Use magic ring start. Work in continuous rounds. " +
-    "Each body part (head, body, arms, legs, ears, tail, accessories) MUST be a separate section. " +
-    "Structure each part with the correct shaping cycle: increase rounds (magic ring → target width, typically 30–48 sts for a 6-inch piece), " +
+    "Each body part (head, body, arms, legs, ears, tail, and any accessories like scarves or hats) MUST be a separate section. " +
+    "Structure each part with the correct shaping cycle: increase rounds (magic ring → target width), " +
     "then even rounds (sc in each st around) to build height, then decrease rounds (sc2tog) to close. " +
-    "A 6-inch amigurumi head should peak at about 36 sts with worsted yarn — NOT 100+ sts. " +
-    "Arms and legs are small cylinders (12–18 sts). Ears are flat circles (6–18 sts). " +
-    "Include safety eye placement round in the head section. " +
-    "End with Finish Off and sewing/assembly instructions for attaching all parts.",
+    "Stitch count targets for worsted yarn: head peaks at ~36 sts, body peaks at ~36–42 sts, " +
+    "arms are small cylinders (~12 sts), legs are cylinders (~15 sts), ears are flat circles (~12 sts). " +
+    "NEVER exceed 48 sts in any round — if you find yourself writing 60+ sts you are making it far too large. " +
+    "Include a FACE DETAILS section with specific instructions for facial features: " +
+    "safety eye placement (which round, how many stitches apart), nose (embroidered or crocheted, shape, colour), " +
+    "mouth (embroidered line or V-shape), cheeks or blush if appropriate. " +
+    "If the design has unique features (headphones, scarf, hat, bow, etc.), include each as its own small section with full instructions. " +
+    "End with a FINISHING & ASSEMBLY section listing exactly how to attach each part (placement, sewing method) and any final embroidery.",
   hat: "Work in rounds from brim up or crown down. Include size-specific stitch counts. End with weave-in instructions.",
   scarf:
     "Work in rows. Specify blocked vs unblocked dimensions. Include turning chains in stitch counts.",
@@ -106,9 +110,9 @@ const TYPE_INSTRUCTIONS: Record<string, string> = {
 // Values are passed to GPT as exact targets so it doesn't guess.
 const SIZE_DIMENSIONS: Record<string, Record<string, string>> = {
   amigurumi: {
-    small: "approximately 4 inches (10 cm) tall",
-    medium: "approximately 6 inches (15 cm) tall",
-    large: "approximately 10 inches (25 cm) tall",
+    small: "approximately 3 inches (8 cm) tall",
+    medium: "approximately 5 inches (13 cm) tall",
+    large: "approximately 7 inches (18 cm) tall",
   },
   hat: {
     small: "child size — approximately 18–19 inch circumference",
