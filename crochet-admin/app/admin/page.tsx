@@ -3,6 +3,7 @@
 import { usePaginatedQuery } from "convex/react";
 import { api } from "@convex/_generated/api";
 import Link from "next/link";
+import { ConvexErrorBoundary } from "@/components/ConvexErrorBoundary";
 
 const STATUS_BADGE: Record<
   string,
@@ -57,6 +58,14 @@ const tdStyle: React.CSSProperties = {
 };
 
 export default function FeedPage() {
+  return (
+    <ConvexErrorBoundary>
+      <FeedContents />
+    </ConvexErrorBoundary>
+  );
+}
+
+function FeedContents() {
   const { results, status, loadMore } = usePaginatedQuery(
     api.queries.admin.listGenerationLogs,
     {},

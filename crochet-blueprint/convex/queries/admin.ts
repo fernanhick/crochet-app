@@ -3,16 +3,34 @@ import { paginationOptsValidator } from "convex/server";
 import { v } from "convex/values";
 
 // ── Guard: require an authenticated user with role = 'admin' ─────────────────
+// Clerk puts publicMetadata into the JWT under the key 'metadata' when using
+// the default Convex JWT template, not 'publicMetadata'.
 async function requireAdmin(ctx: any) {
   const identity = await ctx.auth.getUserIdentity();
   if (!identity) throw new Error("Unauthenticated");
+  // Check all known paths Clerk may use depending on JWT template config
   const role =
-    (identity as any).publicMetadata?.role ??
-    (identity as any).org_role ??
+    (identity as any).metadata?.role ?? // default Convex+Clerk template
+    (identity as any).publicMetadata?.role ?? // custom template
+    (identity as any).role ?? // flat custom claim
+    (identity as any).org_role ?? // org-based role
     null;
-  if (role !== "admin") throw new Error("Forbidden");
+  if (role !== "admin")
+    throw new Error(
+      `Forbidden — role is '${role ?? "null"}'. Set publicMetadata.role = 'admin' on your Clerk user.`,
+    );
   return identity;
 }
+
+// ── Debug: return identity claims (no role check) — remove after setup ───────
+export const getIdentityClaims = query({
+  args: {},
+  handler: async (ctx) => {
+    const identity = await ctx.auth.getUserIdentity();
+    if (!identity) return null;
+    return identity;
+  },
+});
 
 // ── All logs, paginated, newest first ────────────────────────────────────────
 export const listGenerationLogs = query({

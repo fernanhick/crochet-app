@@ -42,6 +42,17 @@ export default function AdminLayout({
         <Link href="/admin/users" style={linkStyle}>
           Users
         </Link>
+        <Link
+          href="/admin/debug"
+          style={{
+            ...linkStyle,
+            marginLeft: "auto",
+            opacity: 0.6,
+            fontWeight: 400,
+          }}
+        >
+          Debug JWT
+        </Link>
       </nav>
       <main style={mainStyle}>{children}</main>
     </>
