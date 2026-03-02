@@ -81,12 +81,19 @@ const GAUGE_REFERENCE: Record<string, string> = {
 // ── Type-specific instructions ───────────────────────────────────────────
 const TYPE_INSTRUCTIONS: Record<string, string> = {
   amigurumi:
-    "Use magic ring start. Work in continuous rounds. Include safety eye placement round. End with Finish Off and sewing instructions.",
-  hat: "Work in rounds from brim up or crown down. Include size-specific stitch counts for Small/Medium/Large. End with weave-in instructions.",
+    "Use magic ring start. Work in continuous rounds. " +
+    "Each body part (head, body, arms, legs, ears, tail, accessories) MUST be a separate section. " +
+    "Structure each part with the correct shaping cycle: increase rounds (magic ring → target width, typically 30–48 sts for a 6-inch piece), " +
+    "then even rounds (sc in each st around) to build height, then decrease rounds (sc2tog) to close. " +
+    "A 6-inch amigurumi head should peak at about 36 sts with worsted yarn — NOT 100+ sts. " +
+    "Arms and legs are small cylinders (12–18 sts). Ears are flat circles (6–18 sts). " +
+    "Include safety eye placement round in the head section. " +
+    "End with Finish Off and sewing/assembly instructions for attaching all parts.",
+  hat: "Work in rounds from brim up or crown down. Include size-specific stitch counts. End with weave-in instructions.",
   scarf:
     "Work in rows. Specify blocked vs unblocked dimensions. Include turning chains in stitch counts.",
   cowl: "Work in the round. Specify circumference and height. Include join method at start of each round.",
-  bag: "Include base, sides, and handles as separate sections. Specify dimensions and weight capacity note.",
+  bag: "Include base, sides, and handles as separate sections. Specify dimensions.",
   blanket:
     "Work in rows or squares. Specify a 12-inch swatch gauge. Include assembly if granny square style.",
   dishcloth:
