@@ -161,19 +161,12 @@ export const SIZE_OPTIONS = [
 ] as const;
 
 export const YARN_WEIGHTS = [
-  { id: "lace", label: "Lace" },
   { id: "fingering", label: "Fingering" },
   { id: "dk", label: "DK" },
   { id: "worsted", label: "Worsted" },
-  { id: "bulky", label: "Bulky" },
 ] as const;
 
-export const SPECIAL_FEATURES = [
-  { id: "safety_eyes", label: "Safety Eyes", emoji: "👀" },
-  { id: "embroidery", label: "Embroidery", emoji: "🪡" },
-  { id: "removable_parts", label: "Removable Parts", emoji: "🔩" },
-  { id: "sewn_accessories", label: "Sewn Accessories", emoji: "🎀" },
-] as const;
+// Special Features removed in v10 — users can describe features in the free-text brief instead.
 
 // ── Section accent colors (tinted — one per pattern section) ─────────────
 export const SECTION_COLORS = [

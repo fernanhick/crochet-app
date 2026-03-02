@@ -5,6 +5,7 @@ import { v } from "convex/values";
 import { api, internal } from "../_generated/api";
 import OpenAI from "openai";
 import { assemblePrompt, PROMPT_VERSION } from "../../lib/prompts";
+import type { AssembledPrompt } from "../../lib/prompts";
 import { APP_VERSION } from "../../lib/constants";
 
 // ── Main generation action — called from mobile app ──────────────────────
@@ -38,8 +39,8 @@ export const generatePattern = action({
     //   throw new Error('QUOTA_EXCEEDED');
     // }
 
-    // 4. ASSEMBLE PROMPT
-    const fullPrompt = assemblePrompt({
+    // 4. ASSEMBLE PROMPT — split into system + user roles
+    const prompt: AssembledPrompt = assemblePrompt({
       type: args.type,
       description: args.description,
       difficulty: args.difficulty,
@@ -48,6 +49,8 @@ export const generatePattern = action({
       yarnWeight: args.yarnWeight,
       specialFeatures: args.specialFeatures,
     });
+    // Flat version for logging
+    const fullPrompt = prompt.system + "\n\n" + prompt.user;
 
     // 5. CREATE LOG ROW — safe default status = 'failed', overwritten on success
     const logId = await ctx.runMutation(
@@ -77,31 +80,74 @@ export const generatePattern = action({
     );
 
     try {
-      // 6. GENERATE TEXT via gpt-4o-mini — one auto-retry
+      // 6. GENERATE TEXT via gpt-4o-mini — split system/user roles
       const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
       const textStart = Date.now();
 
-      const callGPT = async () => {
+      const callGPT = async (
+        messages: { role: "system" | "user"; content: string }[],
+      ) => {
         return await openai.chat.completions.create({
           model: "gpt-4o-mini",
           temperature: 0.3,
-          max_tokens: 8000,
-          messages: [{ role: "user", content: fullPrompt }],
+          max_tokens: 4500,
+          messages,
         });
       };
 
+      const initialMessages: { role: "system" | "user"; content: string }[] = [
+        { role: "system", content: prompt.system },
+        { role: "user", content: prompt.user },
+      ];
+
       let openAiResponse;
       try {
-        openAiResponse = await callGPT();
+        openAiResponse = await callGPT(initialMessages);
       } catch {
         await new Promise((r) => setTimeout(r, 2000));
-        openAiResponse = await callGPT();
+        openAiResponse = await callGPT(initialMessages);
+      }
+
+      let rawText = openAiResponse.choices[0].message.content ?? "";
+      let tokensIn = openAiResponse.usage?.prompt_tokens ?? 0;
+      let tokensOut = openAiResponse.usage?.completion_tokens ?? 0;
+      const finishReason = openAiResponse.choices[0].finish_reason;
+
+      // 6b. CONTINUATION RETRY — if truncated (hit token limit or missing end marker)
+      const isTruncated =
+        finishReason === "length" || !rawText.includes("---END PATTERN---");
+
+      if (isTruncated) {
+        console.warn(
+          `Pattern truncated (finish_reason=${finishReason}). Sending continuation…`,
+        );
+        try {
+          const continuationMessages: {
+            role: "system" | "user";
+            content: string;
+          }[] = [
+            { role: "system", content: prompt.system },
+            { role: "user", content: prompt.user },
+            { role: "user", content: rawText },
+            {
+              role: "user",
+              content:
+                "The pattern above was cut off. Continue EXACTLY from where it stopped. " +
+                "Do NOT repeat any rounds already written. End with ---END PATTERN--- " +
+                "followed by the IMAGE DESCRIPTION line.",
+            },
+          ];
+          const retryResponse = await callGPT(continuationMessages);
+          const retryText = retryResponse.choices[0].message.content ?? "";
+          rawText = rawText + "\n" + retryText;
+          tokensIn += retryResponse.usage?.prompt_tokens ?? 0;
+          tokensOut += retryResponse.usage?.completion_tokens ?? 0;
+        } catch (retryErr) {
+          console.error("Continuation retry failed:", retryErr);
+        }
       }
 
       const textMs = Date.now() - textStart;
-      const rawText = openAiResponse.choices[0].message.content ?? "";
-      const tokensIn = openAiResponse.usage?.prompt_tokens ?? 0;
-      const tokensOut = openAiResponse.usage?.completion_tokens ?? 0;
       // gpt-4o-mini pricing: $0.15/1M input tokens, $0.60/1M output tokens
       const textCostUsd = tokensIn * 0.00000015 + tokensOut * 0.0000006;
 
@@ -110,9 +156,10 @@ export const generatePattern = action({
       const colorStr =
         args.colors.length > 0 ? args.colors.join(" and ") : "natural";
       const yarnStr = args.yarnWeight ?? "worsted";
+      // Fallback includes the user's description so the image matches what they asked for
       const fallbackDescription =
-        `A photorealistic studio photo of a finished ${args.type} made with ${colorStr} ${yarnStr} yarn, ` +
-        `on a warm wooden surface, soft studio lighting, sharp yarn texture, no people, no text`;
+        `A photorealistic studio photo of a finished crochet ${args.type} of ${args.description || "a charming design"}, ` +
+        `made with ${colorStr} ${yarnStr} yarn, on a warm wooden surface, soft studio lighting, sharp yarn texture, no people, no text`;
       const imageDescription = imageDescMatch
         ? imageDescMatch[1].trim()
         : fallbackDescription;

@@ -1,6 +1,6 @@
 // ── Prompt Assembly — matches Blueprint v6.0 Section 5 exactly ─────────────
 // Bump this and save a snapshot to lib/prompt-versions/ before making changes.
-export const PROMPT_VERSION = "v10";
+export const PROMPT_VERSION = "v9";
 
 export interface UserContextArgs {
   type: string;
@@ -10,12 +10,6 @@ export interface UserContextArgs {
   size: string;
   yarnWeight?: string;
   specialFeatures?: string[];
-}
-
-/** Return type for assemblePrompt — split into system & user roles */
-export interface AssembledPrompt {
-  system: string;
-  user: string;
 }
 
 // ── Layer 1: System prompt — never changes ───────────────────────────────
@@ -29,9 +23,8 @@ HARD RULES — you must follow every one:
 4. Write ONLY the pattern. No conversational text, no preamble, no sign-off.
 5. Use US crochet terminology exclusively.
 6. Be specific about yarn weight, hook size, and gauge.
-7. If multiple colours are specified, you MUST use ALL of them. Assign each colour to specific body parts or sections. Write the colour change inside a Rnd/Row line (e.g. "Rnd 5: sc in next 3 sts, change to CC1, sc to end -- 12 sts"). The change must appear inside a round instruction, not only in the section header.
-8. The FINISHED SIZE in your output MUST match the Target size given. Back-calculate all starting stitch counts, increase rounds, and total row/round counts from your stated gauge to reach that exact size.
-9. No single section may exceed 40 rounds or rows. If an item requires more, consolidate with a repeat instruction (e.g. "Rnds 6–30: sc in each st around -- 48 sts" or "Repeat Row 5 for 20 more rows -- 120 sts each"). Never list identical rounds one by one.`;
+7. If multiple colours are specified, you MUST use ALL of them. Assign each colour to specific body parts or sections. Every section that uses a non-MC colour MUST contain at least one explicit colour change written inside a Rnd or Row line (e.g. "Rnd 5: sc in next 3 sts, change to CC1, sc to end -- 12 sts"). Writing the colour only in the section header is NOT enough — the change must appear inside a round instruction.
+8. The FINISHED SIZE in your output MUST match the Target size given. Back-calculate all starting stitch counts, increase rounds, and total row/round counts from your stated gauge to reach that exact size. The yarn amount in MATERIALS must be estimated from your total stitch count × yarn weight.`;
 }
 
 // ── Layer 2: Output template — rarely changes ────────────────────────────
@@ -50,6 +43,7 @@ FINISHED SIZE: [dimensions]
 
 ABBREVIATIONS:
 [code] = [definition]
+[repeat for each abbreviation used]
 
 SPECIAL STITCHES: [if any, else omit section]
 
@@ -57,10 +51,13 @@ NOTES:
 [construction notes, reading direction, etc.]
 
 SECTIONS:
---- [SECTION NAME] ---
+--- [SECTION NAME] --- (MC = [main colour], CC1 = [contrast colour 1], etc.)
 Rnd 1: [instruction] -- X sts
 Rnd 2: [instruction] -- X sts
-[continue — colour changes must appear inside Rnd/Row lines per Rule 7]
+Rnd 3: [instruction], change to CC1 at end of rnd -- X sts
+Rnd 4: with CC1, [instruction] -- X sts
+Rnd 5: [instruction], change to MC at end of rnd -- X sts
+[continue for all rounds — every colour switch MUST appear inside a Rnd/Row line, not as a standalone note]
 
 --- [NEXT SECTION] ---
 [continue all sections]
@@ -126,6 +123,7 @@ const SIZE_DIMENSIONS: Record<string, Record<string, string>> = {
   blanket: {
     small: "approximately 30 × 40 inches (baby blanket)",
     medium: "approximately 50 × 60 inches (throw)",
+    large: "approximately 60 × 80 inches (full/queen throw)",
   },
   dishcloth: {
     small: "approximately 7 × 7 inches",
@@ -135,6 +133,7 @@ const SIZE_DIMENSIONS: Record<string, Record<string, string>> = {
   shawl: {
     small: "approximately 48 inches wide × 20 inches deep",
     medium: "approximately 60 inches wide × 26 inches deep",
+    large: "approximately 72 inches wide × 32 inches deep",
   },
 };
 
@@ -158,7 +157,15 @@ const DIFFICULTY_CONSTRAINTS: Record<string, string> = {
 
 // ── Layer 3: User context block — assembled per request ──────────────────
 export function buildUserContext(args: UserContextArgs): string {
-  const { type, description, difficulty, colors, size, yarnWeight } = args;
+  const {
+    type,
+    description,
+    difficulty,
+    colors,
+    size,
+    yarnWeight,
+    specialFeatures,
+  } = args;
 
   const typeInstructions =
     TYPE_INSTRUCTIONS[type] ||
@@ -171,11 +178,15 @@ export function buildUserContext(args: UserContextArgs): string {
   const yarnStr = yarnWeight || "worsted";
   const sizeStr = resolveSizeDimensions(type, size);
   const gaugeRef = GAUGE_REFERENCE[yarnStr] ?? GAUGE_REFERENCE["worsted"];
+  const featuresStr =
+    specialFeatures && specialFeatures.length > 0
+      ? `\nSpecial features to incorporate: ${specialFeatures.join(", ")}.`
+      : "";
 
-  // Concise colour note — full rules are in system prompt Rule 7
-  const colorNote =
+  // Build explicit colour assignment instruction when multiple colours provided
+  const colorInstruction =
     colors.length > 1
-      ? `\nColours: ${colorStr}. Designate MC and CC1${colors.length > 2 ? ", CC2" : ""}. Apply Rule 7.`
+      ? `\nColour usage (MANDATORY): You have ${colors.length} colours — ${colorStr}. Designate MC (main colour) and CC1, CC2, etc. Assign each colour to specific body parts. You MUST write the colour change inside the actual Rnd/Row line (e.g. "Rnd 6: sc in next 4 sts, change to CC1, sc to end -- 12 sts"). Do NOT only note the colour in the section header — it must appear inside a round. Every listed colour MUST appear in the worked rounds.`
       : "";
 
   return `Create a complete crochet pattern with the following specifications:
@@ -186,7 +197,7 @@ Skill level: ${difficulty}
 Colours: ${colorStr}
 Target size: ${sizeStr}
 Yarn weight: ${yarnStr}
-Gauge reference: ${gaugeRef} — use this as your baseline; adjust hook size ±0.5 mm if needed for tension${colorNote}
+Gauge reference: ${gaugeRef} — use this as your baseline; adjust hook size ±0.5 mm if needed for tension${featuresStr}${colorInstruction}
 
 Construction guidance: ${typeInstructions}
 
@@ -195,13 +206,17 @@ Difficulty constraint: ${difficultyConstraint}
 Remember: every round/row must end with "-- X sts".`;
 }
 
-// ── Full assembled prompt (split system + user for proper role separation) ──
-export function assemblePrompt(args: UserContextArgs): AssembledPrompt {
-  const system = [buildSystemPrompt(), "", buildOutputTemplate()].join("\n");
-  const user = [buildUserContext(args), "", buildImageInstruction(args)].join(
-    "\n",
-  );
-  return { system, user };
+// ── Full assembled prompt (all 3 layers) ─────────────────────────────────
+export function assemblePrompt(args: UserContextArgs): string {
+  return [
+    buildSystemPrompt(),
+    "",
+    buildOutputTemplate(),
+    "",
+    buildUserContext(args),
+    "",
+    buildImageInstruction(args),
+  ].join("\n");
 }
 
 // ── Image instruction — GPT appends IMAGE DESCRIPTION at end of output (v8) ─────

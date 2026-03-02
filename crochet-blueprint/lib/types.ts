@@ -4,23 +4,29 @@ type Id<T extends string> = string & { __tableName: T };
 
 // ── Form State ──────────────────────────────────────────────────────────────
 export type CrochetType =
-  | 'amigurumi' | 'hat' | 'scarf' | 'cowl'
-  | 'bag' | 'blanket' | 'dishcloth' | 'shawl';
+  | "amigurumi"
+  | "hat"
+  | "scarf"
+  | "cowl"
+  | "bag"
+  | "blanket"
+  | "dishcloth"
+  | "shawl";
 
-export type DifficultyLevel = 'beginner' | 'easy' | 'intermediate' | 'advanced';
+export type DifficultyLevel = "beginner" | "easy" | "intermediate" | "advanced";
 
-export type SizeOption = 'small' | 'medium' | 'large' | 'custom';
+export type SizeOption = "small" | "medium" | "large" | "custom";
 
-export type YarnWeight = 'lace' | 'fingering' | 'dk' | 'worsted' | 'bulky';
+export type YarnWeight = "fingering" | "dk" | "worsted";
 
-export type SpecialFeature = 'safety_eyes' | 'embroidery' | 'removable_parts' | 'sewn_accessories';
+// SpecialFeature type removed in v10 — features are now specified via free-text description
 
 /**
  * Form state used in create.tsx
  */
 export interface GenerateFormState {
-  type: string;         // CrochetType id
-  description: string;  // Free-text creative brief
+  type: string; // CrochetType id
+  description: string; // Free-text creative brief
   size: string;
   difficulty: string;
   colors: string[];
@@ -60,13 +66,13 @@ export interface ParsedPattern {
 // ── Convex record ──────────────────────────────────────────────────────────
 /** Shape of a pattern document returned from Convex queries */
 export interface PatternRecord {
-  _id: Id<'patterns'>;
+  _id: Id<"patterns">;
   _creationTime: number;
-  userId: Id<'users'>;
+  userId: Id<"users">;
   patternText: string;
   sectionImages: Record<string, string>;
   metadata: {
-    type: string;        // crochet type id
+    type: string; // crochet type id
     difficulty: string;
     size: string;
     colors: string[];
@@ -82,7 +88,7 @@ export interface PatternRecord {
 }
 
 export interface UserRecord {
-  _id: Id<'users'>;
+  _id: Id<"users">;
   clerkId: string;
   email: string;
   isPremium: boolean;
