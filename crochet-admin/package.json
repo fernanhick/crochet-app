@@ -4,10 +4,10 @@
   "private": true,
   "scripts": {
     "dev": "npm run sync-convex && next dev",
-    "build": "npm run sync-convex && next build",
+    "build": "next build",
     "start": "next start",
     "lint": "next lint",
-    "sync-convex": "node -e \"const{cpSync}=require('fs');cpSync('../crochet-blueprint/convex/_generated','./convex/_generated',{recursive:true,force:true});console.log('Convex types synced')\""
+    "sync-convex": "node -e \"const{cpSync,existsSync}=require('fs');const src='../crochet-blueprint/convex/_generated';if(existsSync(src)){cpSync(src,'./convex/_generated',{recursive:true,force:true});console.log('Convex types synced');}else{console.log('Convex source not found, skipping sync (using committed types)');}\""
   },
   "dependencies": {
     "@clerk/nextjs": "^6.0.0",
