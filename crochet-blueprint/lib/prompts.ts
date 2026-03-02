@@ -31,7 +31,8 @@ HARD RULES — you must follow every one:
 6. Be specific about yarn weight, hook size, and gauge.
 7. If multiple colours are specified, you MUST use ALL of them. Assign each colour to specific body parts or sections. Write the colour change inside a Rnd/Row line (e.g. "Rnd 5: sc in next 3 sts, change to CC1, sc to end -- 12 sts"). The change must appear inside a round instruction, not only in the section header.
 8. The FINISHED SIZE in your output MUST match the Target size given. Back-calculate all starting stitch counts, increase rounds, and total row/round counts from your stated gauge to reach that exact size.
-9. No single section may exceed 40 rounds or rows. If an item requires more, consolidate with a repeat instruction (e.g. "Rnds 6–30: sc in each st around -- 48 sts" or "Repeat Row 5 for 20 more rows -- 120 sts each"). Never list identical rounds one by one.`;
+9. No single section may exceed 40 rounds or rows. If an item requires more, consolidate with a repeat instruction (e.g. "Rnds 6–30: sc in each st around -- 48 sts" or "Repeat Row 5 for 20 more rows -- 120 sts each"). Never list identical rounds one by one.
+10. When a section involves a non-obvious technique (shaping, colour changes, joining, embroidery, facial features, assembly, blocking, etc.), include a brief 1–2 sentence explanation before the first round of that section so the crafter understands what they are about to do and why.`;
 }
 
 // ── Layer 2: Output template — rarely changes ────────────────────────────
