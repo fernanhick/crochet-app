@@ -1,9 +1,9 @@
 # Crochet App — Monorepo
 
-| Folder | Description |
-|--------|-------------|
+| Folder               | Description                           |
+| -------------------- | ------------------------------------- |
 | `crochet-blueprint/` | Expo React Native app (iOS + Android) |
-| `crochet-admin/` | Next.js admin dashboard (web) |
+| `crochet-admin/`     | Next.js admin dashboard (web)         |
 
 Both projects share the same **Convex** backend and **Clerk** authentication setup.
 
@@ -27,12 +27,14 @@ cd crochet-admin && npm run dev   # opens on localhost:3000
 ## Environment variables
 
 **`crochet-blueprint/.env.local`**
+
 ```
 EXPO_PUBLIC_CONVEX_URL=https://your-deployment.convex.cloud
 EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY=pk_test_...
 ```
 
 **`crochet-admin/.env.local`**
+
 ```
 NEXT_PUBLIC_CONVEX_URL=https://your-deployment.convex.cloud
 NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY=pk_test_...
