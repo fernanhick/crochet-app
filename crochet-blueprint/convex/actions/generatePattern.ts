@@ -4,11 +4,22 @@ import { action } from "../_generated/server";
 import { v } from "convex/values";
 import { api, internal } from "../_generated/api";
 import OpenAI from "openai";
-import { assemblePrompt, PROMPT_VERSION } from "../../lib/prompts";
+import {
+  assemblePrompt,
+  buildImagePrompt,
+  PROMPT_VERSION,
+} from "../../lib/prompts";
 import type { AssembledPrompt } from "../../lib/prompts";
 import { APP_VERSION } from "../../lib/constants";
 
-// ── Main generation action — called from mobile app ──────────────────────
+// ── Main generation action — IMAGE-FIRST pipeline (v11) ─────────────────
+//
+// Flow:
+//   1. Auth + assemble prompt
+//   2. DALL-E 3 → generate grid image FIRST
+//   3. GPT-4o (vision) → reads image + system prompt → writes pattern
+//   4. Save + finalise
+//
 export const generatePattern = action({
   args: {
     type: v.string(),
@@ -39,8 +50,17 @@ export const generatePattern = action({
     //   throw new Error('QUOTA_EXCEEDED');
     // }
 
-    // 4. ASSEMBLE PROMPT — split into system + user roles
+    // 4. ASSEMBLE PROMPT — split into system + user roles (no image instruction)
     const prompt: AssembledPrompt = assemblePrompt({
+      type: args.type,
+      description: args.description,
+      difficulty: args.difficulty,
+      colors: args.colors,
+      size: args.size,
+      yarnWeight: args.yarnWeight,
+      specialFeatures: args.specialFeatures,
+    });
+    const imagePromptText = buildImagePrompt({
       type: args.type,
       description: args.description,
       difficulty: args.difficulty,
@@ -71,136 +91,19 @@ export const generatePattern = action({
           fullPrompt,
           promptVersion: PROMPT_VERSION,
           temperature: 0.3,
-          model: "gpt-4o-mini",
+          model: "gpt-4o",
         },
         isPremium,
         appVersion: APP_VERSION,
+        imageGeneratedFirst: true,
         createdAt: startTime,
       },
     );
 
     try {
-      // 6. GENERATE TEXT via gpt-4o-mini — split system/user roles
       const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
-      const textStart = Date.now();
 
-      const callGPT = async (
-        messages: { role: "system" | "user"; content: string }[],
-      ) => {
-        return await openai.chat.completions.create({
-          model: "gpt-4o-mini",
-          temperature: 0.3,
-          max_tokens: 4500,
-          messages,
-        });
-      };
-
-      const initialMessages: { role: "system" | "user"; content: string }[] = [
-        { role: "system", content: prompt.system },
-        { role: "user", content: prompt.user },
-      ];
-
-      let openAiResponse;
-      try {
-        openAiResponse = await callGPT(initialMessages);
-      } catch {
-        await new Promise((r) => setTimeout(r, 2000));
-        openAiResponse = await callGPT(initialMessages);
-      }
-
-      let rawText = openAiResponse.choices[0].message.content ?? "";
-      let tokensIn = openAiResponse.usage?.prompt_tokens ?? 0;
-      let tokensOut = openAiResponse.usage?.completion_tokens ?? 0;
-      const finishReason = openAiResponse.choices[0].finish_reason;
-
-      // 6b. CONTINUATION RETRY — if truncated (hit token limit or missing end marker)
-      const isTruncated =
-        finishReason === "length" || !rawText.includes("---END PATTERN---");
-
-      if (isTruncated) {
-        console.warn(
-          `Pattern truncated (finish_reason=${finishReason}). Sending continuation…`,
-        );
-        try {
-          const continuationMessages: {
-            role: "system" | "user";
-            content: string;
-          }[] = [
-            { role: "system", content: prompt.system },
-            { role: "user", content: prompt.user },
-            { role: "user", content: rawText },
-            {
-              role: "user",
-              content:
-                "The pattern above was cut off. Continue EXACTLY from where it stopped. " +
-                "Do NOT repeat any rounds already written. End with ---END PATTERN--- " +
-                "followed by the IMAGE DESCRIPTION line.",
-            },
-          ];
-          const retryResponse = await callGPT(continuationMessages);
-          const retryText = retryResponse.choices[0].message.content ?? "";
-          rawText = rawText + "\n" + retryText;
-          tokensIn += retryResponse.usage?.prompt_tokens ?? 0;
-          tokensOut += retryResponse.usage?.completion_tokens ?? 0;
-        } catch (retryErr) {
-          console.error("Continuation retry failed:", retryErr);
-        }
-      }
-
-      const textMs = Date.now() - textStart;
-      // gpt-4o-mini pricing: $0.15/1M input tokens, $0.60/1M output tokens
-      const textCostUsd = tokensIn * 0.00000015 + tokensOut * 0.0000006;
-
-      // 7. PARSE IMAGE DESCRIPTION written by GPT, then strip it from stored pattern text
-      const imageDescMatch = rawText.match(/^IMAGE DESCRIPTION:\s*(.+)/m);
-      const colorStr =
-        args.colors.length > 0 ? args.colors.join(" and ") : "natural";
-      const yarnStr = args.yarnWeight ?? "worsted";
-      // Fallback includes the user's description so the image matches what they asked for
-      const fallbackDescription =
-        `A flat-lay grid photo on a warm wooden surface showing each crocheted part of a ${args.type} (${args.description || "a charming design"}) ` +
-        `laid out separately (head, body, arms, legs, ears, accessories) in the top rows, ` +
-        `with the fully assembled finished piece in the bottom-right corner, ` +
-        `made with ${colorStr} ${yarnStr} yarn, soft studio lighting, sharp yarn texture, photorealistic, no people, no text`;
-      const imageDescription = imageDescMatch
-        ? imageDescMatch[1].trim()
-        : fallbackDescription;
-      let patternText = rawText
-        .replace(/^IMAGE DESCRIPTION:.*$/m, "")
-        .trimEnd();
-
-      // 8. VALIDATE — continue best-effort
-      const validation = validatePatternText(patternText);
-      if (!validation.passed) {
-        console.warn(
-          "Validation issues (continuing best-effort):",
-          validation.reasons,
-        );
-      }
-      const parsedSections = (patternText.match(/^--- .+ ---$/gm) ?? []).filter(
-        (l) => !l.includes("BEGIN PATTERN") && !l.includes("END PATTERN"),
-      ).length;
-
-      // 9. PARSE PATTERN NAME & SECTION NAMES
-      const patternName = extractPatternName(patternText);
-      const sectionNames = extractSectionNames(patternText);
-      console.log("Pattern:", patternName, "| Sections:", sectionNames);
-
-      // 10. UPDATE LOG after text generation
-      await ctx.runMutation(internal.mutations.generationLogs.updateAfterText, {
-        logId,
-        rawTextResponse: rawText,
-        parsedSections,
-        validationPassed: validation.passed,
-        validationErrors:
-          validation.reasons.length > 0 ? validation.reasons : undefined,
-        textGenerationMs: textMs,
-        textTokensIn: tokensIn,
-        textTokensOut: tokensOut,
-        textCostUsd,
-      });
-
-      // 11. GENERATE IMAGE via dall-e-3 using GPT's own description
+      // ─── 6. GENERATE IMAGE FIRST via DALL-E 3 ──────────────────────────
       const imageStart = Date.now();
       const sectionImages: Record<string, string> = {};
       let imageStorageId = "";
@@ -210,7 +113,7 @@ export const generatePattern = action({
       try {
         const img = await openai.images.generate({
           model: "dall-e-3",
-          prompt: imageDescription,
+          prompt: imagePromptText,
           n: 1,
           size: "1024x1024",
           response_format: "b64_json",
@@ -236,9 +139,138 @@ export const generatePattern = action({
       const imageMs = Date.now() - imageStart;
       const imagesSucceeded = imageUrl ? 1 : 0;
       const imageCostUsd = imagesSucceeded * 0.04;
-      const totalCostUsd = textCostUsd + imageCostUsd;
-      const totalMs = Date.now() - startTime;
-      const status = imagesSucceeded === 1 ? "success" : "partial";
+
+      // ─── 7. GENERATE TEXT via GPT-4o (vision) ──────────────────────────
+      // If we have an image URL, feed it to GPT-4o as a vision input so the
+      // written pattern matches the concrete visual reference.
+      const textStart = Date.now();
+
+      type ChatMessage = OpenAI.ChatCompletionMessageParam;
+
+      const buildMessages = (): ChatMessage[] => {
+        const systemMsg: ChatMessage = {
+          role: "system",
+          content: prompt.system,
+        };
+
+        if (imageUrl) {
+          // Multimodal user message — image + text
+          const userMsg: ChatMessage = {
+            role: "user",
+            content: [
+              {
+                type: "image_url",
+                image_url: { url: imageUrl, detail: "high" },
+              },
+              {
+                type: "text",
+                text:
+                  "The image above shows the finished crocheted piece with all its parts. " +
+                  "Write a complete crochet pattern that recreates EXACTLY what you see in this image.\n\n" +
+                  prompt.user,
+              },
+            ],
+          };
+          return [systemMsg, userMsg];
+        }
+
+        // Fallback — no image (DALL-E failed), text-only like v10
+        return [systemMsg, { role: "user", content: prompt.user }];
+      };
+
+      const callGPT = async (messages: ChatMessage[]) => {
+        return await openai.chat.completions.create({
+          model: "gpt-4o",
+          temperature: 0.3,
+          max_tokens: 4500,
+          messages,
+        });
+      };
+
+      const initialMessages = buildMessages();
+
+      let openAiResponse;
+      try {
+        openAiResponse = await callGPT(initialMessages);
+      } catch {
+        await new Promise((r) => setTimeout(r, 2000));
+        openAiResponse = await callGPT(initialMessages);
+      }
+
+      let rawText = openAiResponse.choices[0].message.content ?? "";
+      let tokensIn = openAiResponse.usage?.prompt_tokens ?? 0;
+      let tokensOut = openAiResponse.usage?.completion_tokens ?? 0;
+      const finishReason = openAiResponse.choices[0].finish_reason;
+
+      // 7b. CONTINUATION RETRY — if truncated (hit token limit or missing end marker)
+      const isTruncated =
+        finishReason === "length" || !rawText.includes("---END PATTERN---");
+
+      if (isTruncated) {
+        console.warn(
+          `Pattern truncated (finish_reason=${finishReason}). Sending continuation…`,
+        );
+        try {
+          const continuationMessages: ChatMessage[] = [
+            { role: "system", content: prompt.system },
+            { role: "user", content: prompt.user },
+            { role: "user", content: rawText },
+            {
+              role: "user",
+              content:
+                "The pattern above was cut off. Continue EXACTLY from where it stopped. " +
+                "Do NOT repeat any rounds already written. End with ---END PATTERN---.",
+            },
+          ];
+          const retryResponse = await callGPT(continuationMessages);
+          const retryText = retryResponse.choices[0].message.content ?? "";
+          rawText = rawText + "\n" + retryText;
+          tokensIn += retryResponse.usage?.prompt_tokens ?? 0;
+          tokensOut += retryResponse.usage?.completion_tokens ?? 0;
+        } catch (retryErr) {
+          console.error("Continuation retry failed:", retryErr);
+        }
+      }
+
+      const textMs = Date.now() - textStart;
+      // gpt-4o pricing: $2.50/1M input tokens, $10.00/1M output tokens
+      const textCostUsd = tokensIn * 0.0000025 + tokensOut * 0.00001;
+
+      // 8. Clean pattern text — strip any IMAGE DESCRIPTION if GPT wrote one anyway
+      let patternText = rawText
+        .replace(/^IMAGE DESCRIPTION:.*$/m, "")
+        .trimEnd();
+
+      // 9. VALIDATE — continue best-effort
+      const validation = validatePatternText(patternText);
+      if (!validation.passed) {
+        console.warn(
+          "Validation issues (continuing best-effort):",
+          validation.reasons,
+        );
+      }
+      const parsedSections = (patternText.match(/^--- .+ ---$/gm) ?? []).filter(
+        (l) => !l.includes("BEGIN PATTERN") && !l.includes("END PATTERN"),
+      ).length;
+
+      // 10. PARSE PATTERN NAME & SECTION NAMES
+      const patternName = extractPatternName(patternText);
+      const sectionNames = extractSectionNames(patternText);
+      console.log("Pattern:", patternName, "| Sections:", sectionNames);
+
+      // 11. UPDATE LOG after text generation
+      await ctx.runMutation(internal.mutations.generationLogs.updateAfterText, {
+        logId,
+        rawTextResponse: rawText,
+        parsedSections,
+        validationPassed: validation.passed,
+        validationErrors:
+          validation.reasons.length > 0 ? validation.reasons : undefined,
+        textGenerationMs: textMs,
+        textTokensIn: tokensIn,
+        textTokensOut: tokensOut,
+        textCostUsd,
+      });
 
       // 12. SAVE PATTERN
       const patternId = (await ctx.runMutation(
@@ -256,17 +288,21 @@ export const generatePattern = action({
             yarnWeight: args.yarnWeight ?? "worsted",
             specialFeatures: args.specialFeatures ?? [],
             promptVersion: PROMPT_VERSION,
-            modelUsed: "gpt-4o-mini + dall-e-3",
+            modelUsed: "gpt-4o + dall-e-3",
             temperature: 0.3,
           },
         },
       )) as string;
 
       // 13. FINALISE LOG
+      const totalCostUsd = textCostUsd + imageCostUsd;
+      const totalMs = Date.now() - startTime;
+      const status = imagesSucceeded === 1 ? "success" : "partial";
+
       await ctx.runMutation(internal.mutations.generationLogs.finalise, {
         logId,
         patternId: patternId as string,
-        imagePrompts: [imageDescription],
+        imagePrompts: [imagePromptText],
         imageStorageIds: imageStorageId ? [imageStorageId] : [],
         imageUrls: imageUrl ? [imageUrl] : [],
         imageErrors: imageError ? [imageError] : undefined,

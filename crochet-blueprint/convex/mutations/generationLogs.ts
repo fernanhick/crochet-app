@@ -23,6 +23,7 @@ export const create = internalMutation({
     }),
     isPremium: v.boolean(),
     appVersion: v.string(),
+    imageGeneratedFirst: v.optional(v.boolean()),
     createdAt: v.number(),
   },
   handler: async (ctx, args) => {

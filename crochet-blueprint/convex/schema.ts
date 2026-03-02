@@ -91,6 +91,7 @@ export default defineSchema({
     userRating: v.optional(v.union(v.literal("up"), v.literal("down"))),
 
     // ── Metadata ──────────────────────────────────────────────────────────
+    imageGeneratedFirst: v.optional(v.boolean()), // v11: true = image-first pipeline
     isPremium: v.boolean(),
     appVersion: v.string(),
     createdAt: v.number(),

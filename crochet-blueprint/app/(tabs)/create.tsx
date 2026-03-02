@@ -35,10 +35,11 @@ import type { GenerateFormState } from "../../lib/types";
 
 const LOADING_STEPS = [
   { id: 0, label: "Reading your description...", emoji: "📖" },
-  { id: 1, label: "Calculating stitch counts...", emoji: "🧮" },
-  { id: 2, label: "Writing the pattern...", emoji: "✍️" },
-  { id: 3, label: "Generating section images...", emoji: "🎨" },
-  { id: 4, label: "Finalising your blueprint...", emoji: "📦" },
+  { id: 1, label: "Generating your design image...", emoji: "🎨" },
+  { id: 2, label: "Designing stitch counts & shaping...", emoji: "🧮" },
+  { id: 3, label: "Writing pattern sections...", emoji: "✍️" },
+  { id: 4, label: "Checking for completeness...", emoji: "✅" },
+  { id: 5, label: "Finalising your blueprint...", emoji: "📦" },
 ];
 
 interface ChipRowProps {
@@ -117,7 +118,8 @@ export default function CreateScreen() {
   // Auto-advance loading step display (cosmetic only — real steps fire on server)
   useEffect(() => {
     if (!loading) return;
-    const intervals = [800, 3000, 6000, 12000];
+    // Image-first pipeline: ~30s total — intervals tuned accordingly
+    const intervals = [1500, 8000, 14000, 20000, 26000];
     const timers = intervals.map((delay, i) =>
       setTimeout(() => setLoadingStep(i + 1), delay),
     );
@@ -247,6 +249,20 @@ export default function CreateScreen() {
               );
             })}
           </View>
+
+          <Text
+            style={{
+              color: Colors.gray,
+              fontFamily: Font.body,
+              fontSize: FontSize.sm,
+              textAlign: "center",
+              marginTop: Spacing[4],
+              paddingHorizontal: Spacing[6],
+            }}
+          >
+            This usually takes 20–30 seconds.{"\n"}Your pattern is being
+            carefully crafted!
+          </Text>
         </View>
 
         <StripeRule height={8} borderTop={true} borderBottom={false} />

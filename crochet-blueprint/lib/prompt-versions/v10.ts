@@ -1,6 +1,6 @@
 // ── Prompt Assembly — matches Blueprint v6.0 Section 5 exactly ─────────────
 // Bump this and save a snapshot to lib/prompt-versions/ before making changes.
-export const PROMPT_VERSION = "v11";
+export const PROMPT_VERSION = "v10";
 
 export interface UserContextArgs {
   type: string;
@@ -208,26 +208,25 @@ Remember: every round/row must end with "-- X sts".`;
 }
 
 // ── Full assembled prompt (split system + user for proper role separation) ──
-// v11: Image-first pipeline — image is generated BEFORE the text call, so
-// assemblePrompt no longer includes buildImageInstruction.
 export function assemblePrompt(args: UserContextArgs): AssembledPrompt {
   const system = [buildSystemPrompt(), "", buildOutputTemplate()].join("\n");
-  const user = buildUserContext(args);
+  const user = [buildUserContext(args), "", buildImageInstruction(args)].join(
+    "\n",
+  );
   return { system, user };
 }
 
-// ── Image prompt builder — used by generatePattern to call DALL-E BEFORE GPT ──
-// v11: Image is generated first; the URL is then fed to GPT-4o as a vision input.
-export function buildImagePrompt(args: UserContextArgs): string {
+// ── Image instruction — GPT appends IMAGE DESCRIPTION at end of output ─────────
+// Parsed out and sent to dall-e-3 in generatePattern.ts. Stripped before storage.
+export function buildImageInstruction(args: UserContextArgs): string {
   const colorStr =
     args.colors.length > 0 ? args.colors.join(" and ") : "natural";
   const yarnStr = args.yarnWeight || "worsted";
   return (
-    `A flat-lay grid photo on a warm wooden surface showing each crocheted part of a ${args.type} ` +
-    `(${args.description || "a charming design"}) laid out separately ` +
-    `(head, body, arms, legs, ears, accessories) in the top rows, ` +
-    `with the fully assembled finished piece in the bottom-right corner, ` +
-    `made with ${colorStr} ${yarnStr} yarn, soft studio lighting, sharp yarn texture, ` +
-    `photorealistic, no people, no text`
+    `After ---END PATTERN--- append exactly one line in this format:\n` +
+    `IMAGE DESCRIPTION: [a single-sentence description of a flat-lay grid image on a warm wooden surface showing: ` +
+    `each crocheted part of the ${args.type} laid out separately (head, body, arms, legs, ears, accessories) in the top rows ` +
+    `and the fully assembled finished ${args.type} in the bottom-right corner, ` +
+    `using ${colorStr} ${yarnStr} yarn, soft studio lighting, sharp yarn texture, photorealistic, no people, no text]`
   );
 }
